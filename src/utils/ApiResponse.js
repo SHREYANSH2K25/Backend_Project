@@ -8,4 +8,6 @@ class ApiResponse{
         this.data = data,
         this.message = message
     }
-}
+} 
+
+export {ApiResponse}
