@@ -1,6 +1,6 @@
 
 import { asyncHandler } from "../utils/asyncHandler.js"
-import {ApiError} from "./utils/ApiError.js"
+import {ApiError} from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import { upload } from "../middlewares/multer.middleware.js"
@@ -17,9 +17,10 @@ const registerUser = asyncHandler(async (req, res) => {
     // return response
     
     // taking user details
-    const {fullName, email, username, password } =req.body
-    console.log("email : ", email );
+    const {fullName, email, username, password } = req.body
+    //console.log(fullName, email, username, password);
 
+    //console.log(req.body)
     //  checking validity of details
     if([fullName, email, username, password].some((field) => 
         field?.trim() === "")){
@@ -32,7 +33,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const existedUser = await User.findOne({
         // user $or operator which find if any one field of given array is present return true
-        $or : [{username}, {email}]
+         $or: [{ username: username.toLowerCase() }, { email: email.toLowerCase() }]
         // check if ursername OR email already exists
     })
 
@@ -40,9 +41,15 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(409, "User Already Exists")
     }
 
+    //console.log(req.files)
     // Get local path of avatar and cover image file using multer
     const avatarLocalPath = req.files?.avatar[0]?.path
-    const coverImageLocalPath = req.files?.coverImage[0]?.path
+   //const coverImageLocalPath = req.files?.coverImage[0]?.path
+
+    let coverImageLocalPath;
+    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+        coverImageLocalPath = req.files?.coverImage[0].path
+    }
 
     if(!avatarLocalPath){
         throw new ApiError(400, "Avatar Image not uploaded")
@@ -53,11 +60,11 @@ const registerUser = asyncHandler(async (req, res) => {
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
 
     if(!avatar){
-        throw new ApiError(400, "Avatar Image not uploaded")
+        throw new ApiError(400, "Avatar Image not uploaded on cloudinary")
     }
 
     // create user object
-    await User.create({
+    const user  = await User.create({
         fullName,
         avatar : avatar.url,
         coverImage : coverImage?.url || "",
@@ -67,7 +74,7 @@ const registerUser = asyncHandler(async (req, res) => {
     })
 
     // remove password and refreshtoken before sending response
-    const createdUser = await User.findById(User._id).select(
+    const createdUser = await User.findById(user._id).select(
         "-password -refreshToken"
     )
 
