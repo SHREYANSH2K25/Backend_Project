@@ -2,8 +2,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js"
 import {ApiError} from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
-import {uploadOnCloudinary} from "../utils/cloudinary.js"
-import { upload } from "../middlewares/multer.middleware.js"
+import {uploadOnCloudinary, deletefromCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt, { decode } from "jsonwebtoken"
 
@@ -278,7 +277,7 @@ const getCurrentUser = asyncHandler(async (req, res) => {
     .status(200)
     .json(
         new ApiResponse(
-            200, {currentUser}, "Current"
+            200, currentUser, "Current"
         )
     )
 })
@@ -311,21 +310,30 @@ const updateAccountDetails = asyncHandler( async(req, res) => {
 })
 
 const updateUserAvatar = asyncHandler( async(req, res) => {
-    const avatarLocalPath = user.file?.path
+    const avatarLocalPath =req.file?.path
 
     if(!avatarLocalPath){
         throw new ApiError(400, "Avatar file is missing")
     }
 
+    
     const avatar = await uploadOnCloudinary(avatarLocalPath)
     if(!avatar.url){
         throw new ApiError(400, "Error while uploading on avatar")
     }
+
+    // delete from cloudinary
+    const user = await User.findById(req.user?._id);
+    if(user?.avatarPublicId){
+        await deletefromCloudinary(user.avatarPublicId);
+    }
+
     const updatedAvatar = await User.findByIdAndUpdate(
         req.user?._id,
         {
             $set : {
-                avatar : avatar.url
+                avatar : avatar.url,
+                avatarPublicId: avatar.public_id,
             }
         },
         {new : true}
@@ -349,16 +357,26 @@ const updateUserCoverImage = asyncHandler( async(req, res) => {
         throw new ApiError(400, "Cover-image file is missing")
     }
 
+
+
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
 
     if(!coverImage.url){
         throw new ApiError(400, "Error while uploading cover image")
     }
+
+    // delete from cloudinary
+    const user = await User.findById(req.user?._id);
+    if(user?.coverImagePublicId){
+        await deletefromCloudinary(user.coverImagePublicId);
+    }
+
     const updateCoverImage = await User.findByIdAndUpdate(
         req.user?._id,
         {
             $set : {
-                coverImage : coverImage.url
+                coverImage : coverImage.url,
+                coverImagePublicId: coverImage.public_id,
             }
         },
         { new: true }
