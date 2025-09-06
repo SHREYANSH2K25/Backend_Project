@@ -6,6 +6,7 @@ import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import { upload } from "../middlewares/multer.middleware.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt, { decode } from "jsonwebtoken"
+
 const generateAccessandRefreshTokens = async(userId)=>{
     try {
         // firstly find user by id
@@ -248,4 +249,3 @@ const refreshAccessToken = asyncHandler( async(req, res) =>{
 })
 
 export { registerUser, loginUser, logOutUser, refreshAccessToken }
-   
