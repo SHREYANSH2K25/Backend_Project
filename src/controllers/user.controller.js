@@ -5,7 +5,7 @@ import { User } from "../models/user.model.js"
 import {uploadOnCloudinary, deletefromCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt, { decode } from "jsonwebtoken"
-
+import mongoose from "mongoose"
 const generateAccessandRefreshTokens = async(userId)=>{ 
     try {
         // firstly find user by id
@@ -259,7 +259,7 @@ const changeCurrentPassword = asyncHandler( async(req, res) => {
     }
 
     user.password = newPassword
-    await user.save(validateBeforeSave = false)
+    await user.save({ validateBeforeSave: false })
     return res
     .status(200)
     .json(
@@ -272,12 +272,11 @@ const changeCurrentPassword = asyncHandler( async(req, res) => {
 })
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-    const currentUser = req.user // pehle he MW banaya tha logOut ke time toh req has user now
     return res
     .status(200)
     .json(
         new ApiResponse(
-            200, currentUser, "Current"
+            200, req.user , "Current"
         )
     )
 })
@@ -397,13 +396,13 @@ const getChannelUserProfile = asyncHandler( async(req, res) => {
     if(!username?.trim()){
         throw new ApiError(400, "Username is missing.");
     }
-    const currentUserId = req.user?._id ? new mongoose.Types.ObjectId(req.user._id) : null;
+   
 
     const channel = await User.aggregate(
         [
             {
-                $match : {
-                    username : username?.toLowerCase(),
+                $match: {
+                    username: username.toLowerCase()
                 }
             },
             {   // lookup and gives array of all subsribers of channel
@@ -426,15 +425,15 @@ const getChannelUserProfile = asyncHandler( async(req, res) => {
                 // now we have two pipelines we simply have to add them
                 $addFields: {
                     subscribersCount : {
-                        $size: "subscribers"
+                        $size: "$subscribers"
                     },
                     channelsSubscribedToCount: {
-                        $size: "subscribedTo"
+                        $size: "$subscribedTo"
                     },
                     isSubscribed : {
                         $cond: {
                         if: {
-                            $in: [req.user?._id, "subscribers.subscriber"]
+                            $in: [req.user?._id, "$subscribers.subscriber"]
                         },
                         then : true,
                         else: false  
@@ -446,7 +445,7 @@ const getChannelUserProfile = asyncHandler( async(req, res) => {
                 $project: {
                     fullName: 1,
                     username: 1,
-                    subscriberCount: 1,
+                    subscribersCount: 1,
                     channelIsSubscribedToCount: 1,
                     isSubscribed : 1,
                     avatar: 1,
@@ -468,6 +467,7 @@ const getChannelUserProfile = asyncHandler( async(req, res) => {
         new ApiResponse(200, channel[0], "User channel fetched successfully.")
     )
 })
+
 
 const getWatchHistory = asyncHandler( async(req, res) => {
     const user = await User.aggregate([
